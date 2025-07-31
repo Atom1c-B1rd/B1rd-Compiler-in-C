@@ -208,8 +208,13 @@ static ASTNode* parse_print_statement(Parser* parser) {
     consume(parser);
     expect(parser, TOKEN_LARROW, "Se esperaba '<-' despues de Print");
     expect(parser, TOKEN_LPAREN, "Se esperaba '(' despues de Print");
-    ASTNode** args = parse_expression(parser);
+    ASTNode** args = NULL;
     size_t arg_count = 0;
+
+    ASTNode* arg = parse_expression(parser);
+    args=malloc(sizeof(ASTNode*));
+    args[arg_count++] = arg;
+
     while (!match(parser, TOKEN_RPAREN)) {
         ASTNode* arg = parse_expression(parser);
         args=realloc(args, sizeof(ASTNode*) * (arg_count + 1));
