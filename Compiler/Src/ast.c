@@ -1,5 +1,5 @@
 
-#include "Ast.h"
+#include "ast.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
