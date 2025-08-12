@@ -29,6 +29,7 @@ typedef enum {
     TOKEN_VAR,
     TOKEN_NUMBER,
     TOKEN_LETTER,
+    TOKEN_BOOL,
     TOKEN_VOID,
     TOKEN_ARRAY,
     TOKEN_INPUT,

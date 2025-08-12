@@ -9,6 +9,8 @@ typedef struct {
     size_t current_token;
     size_t token_count;
     int current_line;
+    char** classes;
+    size_t classes_count;
 } Parser;
 
 ASTNode* parse(Token* tokens);
@@ -31,5 +33,7 @@ static ASTNode* parse_class(Parser* parser);
 static ASTNode* parse_new_instance(Parser* parser);
 static ASTNode* parse_method_call(Parser* parser,ASTNode* object);
 static ASTNode* parse_property_accsess(Parser* parser,char* property_name);
+static ASTNode* parse_this(Parser* parser);
+
 
 #endif

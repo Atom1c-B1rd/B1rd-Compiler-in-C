@@ -31,6 +31,7 @@ typedef enum {
     NODE_METHOD_CALL,
     NODE_PROPERTY_ACCESS,
     NODE_THIS,
+    NODE_ASSIGN,
 } NodeType;
 
 typedef struct ASTNode {
@@ -137,6 +138,8 @@ typedef struct ASTNode {
         struct {
             struct ASTNode* object;
             struct ASTNode* property_name;
+            bool is_this;
+            bool assingment;
         }property_access;
         struct {
             struct ASTNode* object;
@@ -144,6 +147,13 @@ typedef struct ASTNode {
             struct ASTNode** args;
             size_t arg_count;
         }method_call;
+        struct {
+            struct ASTNode* target;
+            struct ASTNode* value;
+        }assignment;
+        struct {
+            struct ASTNode* target;
+        }this_;
     };
 } ASTNode;
 
@@ -167,8 +177,9 @@ ASTNode* create_print(ASTNode** args, size_t args_count);
 ASTNode* create_input(ASTNode* input_type,ASTNode* prompt);
 ASTNode* create_class_def(char* name, ASTNode** properties, size_t properties_count,ASTNode** methods,size_t method_count);
 ASTNode* create_class_instance(ASTNode* class_ref, ASTNode** properties, size_t properties_count);
-ASTNode* create_property_access(ASTNode* object,ASTNode* property_name);
+ASTNode* create_property_access(ASTNode* object,ASTNode* property_name,bool is_this,bool assingment);
 ASTNode* create_method_call(ASTNode* object, char* method_name,ASTNode** args,size_t args_count);
+ASTNode* create_assigment_stmt(ASTNode* target, ASTNode* value);
 ASTNode* create_this_node();
 
 
