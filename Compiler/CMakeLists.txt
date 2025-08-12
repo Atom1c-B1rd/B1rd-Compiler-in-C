@@ -4,9 +4,10 @@ project(B1rd)
 set(CMAKER_C_STANDARD 11)
 
 add_executable(b1rd
-    Src/main.c
-    Src/lexer.c
-    Src/ast.c
-    Src/parse.c
+        Src/main.c
+        Src/lexer.c
+        Src/ast.c
+        Src/parse.c
+        Src/codegen.c
 )
 target_include_directories(b1rd PRIVATE Include)
