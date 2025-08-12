@@ -152,7 +152,7 @@ ASTNode* create_input(ASTNode* input_type,ASTNode* prompt) {
 ASTNode* create_class_def(char* name, ASTNode** properties, size_t properties_count,ASTNode** methods,size_t method_count) {
     ASTNode* node = malloc(sizeof(ASTNode));
     node->type = NODE_CLASS;
-    node->class_def.name = name;
+    node->class_def.name = strdup(name);
     node->class_def.properties = properties;
     node->class_def.properties_count = properties_count;
     node->class_def.methods = methods;
@@ -167,11 +167,14 @@ ASTNode* create_class_instance(ASTNode* class_ref, ASTNode** properties, size_t 
     node->class_instance.properties_count = properties_count;
     return node;
 }
-ASTNode* create_property_access(ASTNode* object,struct ASTNode* property_name) {
+ASTNode* create_property_access(ASTNode* object,struct ASTNode* property_name,bool is_this,bool assingment) {
     ASTNode* node = malloc(sizeof(ASTNode));
     node->type = NODE_PROPERTY_ACCESS;
     node->property_access.object = object;
     node->property_access.property_name = property_name;
+    node->property_access.is_this = is_this;
+    node->property_access.assingment = assingment;
+    printf("se creo u property accses\n");
     return node;
 }
 ASTNode* create_method_call(ASTNode* object, char* method_name,ASTNode** args,size_t args_count) {
@@ -183,165 +186,255 @@ ASTNode* create_method_call(ASTNode* object, char* method_name,ASTNode** args,si
     node->method_call.arg_count = args_count;
     return node;
 }
+ASTNode* create_assigment_stmt(ASTNode* target, ASTNode* value) {
+    ASTNode* node = malloc(sizeof(ASTNode));
+    node->type=NODE_ASSIGN;
+    node->assignment.target = target;
+    node->assignment.value = value;
+    return node;
+}
+
 ASTNode* create_this_node() {
     ASTNode* node = malloc(sizeof(ASTNode));
     node->type = NODE_THIS;
     return node;
 }
 
-
 void free_ast(ASTNode* node) {
     if (!node) return;
-
     switch (node->type) {
         case NODE_PROGRAM:
             for (size_t i = 0; i < node->program.function_count; i++) {
                 free_ast(node->program.functions[i]);
             }
-            free(node->program.functions);
+            if (node->program.functions) {
+                free(node->program.functions);
+            }
+
             for (size_t i=0; i < node->program.class_count; i++) {
                 free_ast(node->program.classes[i]);
             }
-            free(node->program.classes);
+            if (node->program.classes) {
+                free(node->program.classes);
+            }
+
             for (size_t i=0; i < node->program.data_count; i++) {
                 free_ast(node->program.data[i]);
             }
-            free(node->program.data);
+            if (node->program.data) {
+                free(node->program.data);
+            }
             break;
 
         case NODE_FUNCTION:
-            free(node->function.name);
+            if (node->function.name) {
+                free(node->function.name);
+            }
             for (size_t i = 0; i < node->function.param_count; i++) {
                 free_ast(node->function.params[i]);
             }
-            free(node->function.params);
-            free_ast(node->function.return_type);
+            if (node->function.params) {
+                free(node->function.params);
+            }
+            if (node->function.return_type) {
+                free_ast(node->function.return_type);
+            }
             for (size_t i = 0; i < node->function.body_count; i++) {
                 free_ast(node->function.body[i]);
             }
-            free(node->function.body);
+            if (node->function.body) {
+                free(node->function.body);
+            }
             break;
 
         case NODE_VARIABLE:
-            free(node->variable.name);
-            free_ast(node->variable.var_type);
-            free_ast(node->variable.value);
+            if (node->variable.name) {
+                free(node->variable.name);
+            }
+            if (node->variable.var_type) {
+                free_ast(node->variable.var_type);
+            }
+            if (node->variable.value) {
+                free_ast(node->variable.value);
+            }
             break;
 
         case NODE_LITERAL:
         case NODE_LITERAL_NUMBER:
         case NODE_LITERAL_LETTER:
         case NODE_TYPE_PRIMITIVE:
-            free(node->literal.value);
+            if (node->literal.value) {
+                free(node->literal.value);
+            }
             break;
         case NODE_PRINT:
             for (size_t i = 0; i < node->print_stmt.arg_count; i++) {
                 free_ast(node->print_stmt.args[i]);
             }
-            free(node->print_stmt.args);
+            if (node->print_stmt.args) {
+                free(node->print_stmt.args);
+            }
             break;
 
         case NODE_ARRAY_LITERAL:
             for (size_t i = 0; i < node->array_literal.count; i++) {
                 free_ast(node->array_literal.elements[i]);
             }
-            free(node->array_literal.elements);
+            if (node->array_literal.elements) {
+                free(node->array_literal.elements);
+            }
             break;
 
         case NODE_BINARY_OP:
-            free_ast(node->binary_op.left);
-            free_ast(node->binary_op.right);
+            if (node->binary_op.left) {
+                free_ast(node->binary_op.left);
+            }
+            if (node->binary_op.right) {
+                free_ast(node->binary_op.right);
+            }
             break;
 
         case NODE_UNARY_OP:
-            free_ast(node->unary_op.expr);
+            if (node->unary_op.expr) {
+                free_ast(node->unary_op.expr);
+            }
             break;
 
         case NODE_ARRAY_ACCESS:
-            free_ast(node->array_access.array);
-            free_ast(node->array_access.index);
+            if (node->array_access.array) {
+                free_ast(node->array_access.array);
+            }
+            if (node->array_access.index) {
+                free_ast(node->array_access.index);
+            }
             break;
 
         case NODE_FUNCTION_CALL:
-            free_ast(node->function_call.func);
+            if (node->function_call.func) {
+                free_ast(node->function_call.func);
+            }
             for (size_t i = 0; i < node->function_call.arg_count; i++) {
                 free_ast(node->function_call.args[i]);
             }
-            free(node->function_call.args);
+            if (node->function_call.args) {
+                free(node->function_call.args);
+            }
             break;
 
         case NODE_IF:
-            free_ast(node->if_stmt.condition);
+            if (node->if_stmt.condition) {
+                free_ast(node->if_stmt.condition);
+            }
             for (size_t i = 0; i < node->if_stmt.then_count; i++) {
                 free_ast(node->if_stmt.then_branch[i]);
             }
-            free(node->if_stmt.then_branch);
+            if (node->if_stmt.then_branch) {
+                free(node->if_stmt.then_branch);
+            }
             for (size_t i = 0; i < node->if_stmt.else_count; i++) {
                 free_ast(node->if_stmt.else_branch[i]);
             }
-            free(node->if_stmt.else_branch);
+            if (node->if_stmt.else_branch) {
+                free(node->if_stmt.else_branch);
+            }
             for (size_t i = 0; i < node->if_stmt.elseif_count; i++) {
                 free_ast(node->if_stmt.elseif_branch[i]);
             }
-            free(node->if_stmt.elseif_branch);
+            if (node->if_stmt.elseif_branch) {
+                free(node->if_stmt.elseif_branch);
+            }
             break;
 
         case NODE_SWITCH:
-            free_ast(node->switch_stmt.expr);
+            if (node->switch_stmt.expr) {
+                free_ast(node->switch_stmt.expr);
+            }
             for (size_t i = 0; i < node->switch_stmt.case_count; i++) {
                 free_ast(node->switch_stmt.cases[i]);
             }
-            free(node->switch_stmt.cases);
+            if (node->switch_stmt.cases) {
+                free(node->switch_stmt.cases);
+            }
             break;
 
         case NODE_CASE:
-            free_ast(node->case_stmt.value);
+            if (node->case_stmt.value) {
+                free_ast(node->case_stmt.value);
+            }
             for (size_t i = 0; i < node->case_stmt.body_count; i++) {
                 free_ast(node->case_stmt.body[i]);
             }
-            free(node->case_stmt.body);
+            if (node->case_stmt.body) {
+                free(node->case_stmt.body);
+            }
             break;
 
         case NODE_TYPE_ARRAY:
-            free_ast(node->array_type.base_type);
+            if (node->array_type.base_type) {
+                free_ast(node->array_type.base_type);
+            }
             break;
         case NODE_INPUT:
-            free_ast(node->input_stmt.input_type);
-            free_ast(node->input_stmt.prompt);
+            if(node->input_stmt.input_type) {
+                free_ast(node->input_stmt.input_type);
+            }
+            if (node->input_stmt.prompt) {
+                free_ast(node->input_stmt.prompt);
+            }
             break;
         case NODE_CLASS:
-            free_ast(node->class_def.name);
-            for (size_t i = 0; i < node->class_def.properties_count; i++) {
-                free_ast(node->class_def.properties[i]);
+            if (node->class_def.name) {
+                free(node->class_def.name);
+                node->class_def.name = NULL;
             }
-            free(node->class_def.properties);
-            for (size_t i = 0; i < node->class_def.method_count; i++) {
-                free_ast(node->class_def.methods[i]);
+
+            if (node->class_def.properties) {
+                for (size_t i = 0; i < node->class_def.properties_count; i++) {
+                    free_ast(node->class_def.properties[i]);
+                }
+                free(node->class_def.properties);
             }
-            free(node->class_def.methods);
+            if (node->class_def.methods) {
+                for (size_t i = 0; i < node->class_def.method_count; i++) {
+                    free_ast(node->class_def.methods[i]);
+                }
+                free(node->class_def.methods);
+            }
             break;
         case NODE_CLASS_INSTANCE:
-            free_ast(node->class_instance.class_ref);
+            if (node->class_instance.class_ref) {
+                free_ast(node->class_instance.class_ref);
+            }
             for (size_t i = 0; i < node->class_instance.properties_count; i++) {
                 free_ast(node->class_instance.properties[i]);
             }
-            free(node->class_instance.properties);
+            if (node->class_instance.properties) {
+                free(node->class_instance.properties);
+            }
             break;
         case NODE_PROPERTY_ACCESS:
-            free_ast(node->property_access.property_name);
-            free_ast(node->property_access.object);
+            if (node->property_access.property_name) {
+                free_ast(node->property_access.property_name);
+            }
+            if (node->property_access.object) {
+                free_ast(node->property_access.object);
+            }
+            node->property_access.is_this = NULL;
+            node->property_access.assingment = NULL;
             break;
         case NODE_METHOD_CALL:
             free_ast(node->method_call.object);
-            free_ast(node->method_call.method_name);
+            free(node->method_call.method_name);
             for (size_t i = 0; i < node->method_call.arg_count; i++) {
                 free_ast(node->method_call.args[i]);
             }
             free(node->method_call.args);
             break;
-            default:
+        case NODE_THIS:
+            free(node->this_.target);
+            break;
+        default:
             break;
     }
-
     free(node);
 }

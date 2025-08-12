@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
                tokens[i].value, tokens[i].type, tokens[i].line);
     }
     ASTNode* ast = parse(tokens);
-    generate_codegen(ast,"output.c");
+    generate_codegen(ast,"output.cpp");
     free_tokens(tokens);
     free_ast(ast);
     return 0;

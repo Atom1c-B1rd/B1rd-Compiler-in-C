@@ -29,7 +29,14 @@ static void expect(Parser* parser, TokenType type, const char* error_msg) {
     }
     consume(parser);
 }
-
+static bool is_class_type(Parser* parser, char* type_name) {
+    for (size_t i=0; i<parser->classes_count; i++) {
+        if (!strcmp(type_name, parser->classes[i])==0) {
+            return true;
+        }
+    }
+    return false;
+}
 static ASTNode* parse_type(Parser* parser) {
     Token type_token = consume(parser);
 
@@ -42,18 +49,17 @@ static ASTNode* parse_type(Parser* parser) {
      if (type_token.type==TOKEN_NUMBER) {
         return create_primitive_type(type_token.value);
     }
-    if(type_token.type != TOKEN_IDENTIFIER) {
-        fprintf(stderr, "Error: Tipo inválido\n");
-        exit(1);
+    if(type_token.type == TOKEN_IDENTIFIER) {
+        ASTNode* type_node = create_primitive_type(type_token.value);
+        if (match(parser, TOKEN_LBRACKET)) {
+            consume(parser); // '['
+            expect(parser, TOKEN_RBRACKET, "Se esperaba ']'");
+            return create_array_type(type_node);
+        }
+        return type_node;
     }
-
-
-    ASTNode* type_node = create_primitive_type(type_token.value);
-    if (match(parser, TOKEN_LBRACKET)) {
-        consume(parser); // '['
-        expect(parser, TOKEN_RBRACKET, "Se esperaba ']'");
-        return create_array_type(type_node);
-    }
+    fprintf(stderr, "Error: Tipo inválido\n");
+    exit(1);
 }
 static ASTNode* parse_primary(Parser* parser) {
     Token token = peek(parser);
@@ -77,9 +83,11 @@ static ASTNode* parse_primary(Parser* parser) {
             consume(parser);
             return create_literal(token.value,token.type == TOKEN_LITERAL_NUMBER ? NODE_LITERAL : NODE_LITERAL_LETTER);
         case TOKEN_IDENTIFIER: {
+            printf("entre al identifier\n");
             if ((parser->current_token + 1 < parser->token_count) && parser->tokens[parser->current_token + 1].type == TOKEN_LARROW ){
                 return parse_function_call(parser);
             }
+
             consume(parser);
             ASTNode* ident = malloc(sizeof(ASTNode));
             ident->type = NODE_IDENTIFIER;
@@ -96,22 +104,26 @@ static ASTNode* parse_primary(Parser* parser) {
             expect(parser, TOKEN_RPAREN, "Se esperaba ')'");
             return expr;
         }
-
-        case TOKEN_THIS: {
-            consume(parser);
-            expect(parser, TOKEN_DOT, "Se esperaba '.' despues de 'this'");
-            Token prop=consume(parser);
-            if (prop.type != TOKEN_IDENTIFIER) {
-                fprintf(stderr,"Se esperaba un identificar de propiedad despues de 'this'");
-            }
-            return create_property_access(create_this_node(),parse_primary(parser));
-        }
+        case TOKEN_THIS:
+            create_this_node();
+            break;
+        case TOKEN_NEW:
+            printf("entre al new primary\n");
+            parse_new_instance(parser);
+            break;
         default:
             fprintf(stderr, "Error: Expresión inválida en la linea %d\n",token.line);
             exit(1);
     }
 }
+static ASTNode* parse_this(Parser* parser) {
+    expect(parser,TOKEN_THIS,"Se esperaba This");
+    consume(parser);
+    Token varible_name = consume(parser);
+    ASTNode* class_ref=create_literal(varible_name.value,NODE_IDENTIFIER);
+    return create_this_node(class_ref);
 
+}
 static ASTNode* parse_array_literal(Parser* parser) {
     expect(parser, TOKEN_LBRACKET, "Se esperaba '['");
     ASTNode** elements = NULL;
@@ -155,6 +167,27 @@ static ASTNode* parse_function_call(Parser* parser) {
 static ASTNode* parse_expression(Parser* parser) {
     ASTNode* left = parse_primary(parser);
 
+    if (left->type == NODE_THIS) {
+        printf("entre al this de expression\n");
+        consume(parser);
+        expect(parser, TOKEN_RARROW, "Se esperaba '.' despues de 'this'");
+        Token prop=consume(parser);
+        if (prop.type != TOKEN_IDENTIFIER) {
+            fprintf(stderr,"Se esperaba un identificar de propiedad despues de 'this'");
+        }
+        bool assigment=false;
+        if (match(parser, TOKEN_ASSIGN)) {
+            printf("esta asingnando\n");
+            assigment = true;
+        }
+        left= create_property_access(left,create_literal(prop.value,NODE_IDENTIFIER),true,assigment);
+        if (assigment) {
+            consume(parser);
+            consume(parser);
+        }
+
+    }
+
     while (match(parser, TOKEN_PLUS) || match(parser, TOKEN_MINUS) ||
            match(parser, TOKEN_MUL) || match(parser, TOKEN_DIV) ||
            match(parser, TOKEN_EQ) || match(parser, TOKEN_NEQ) ||
@@ -172,11 +205,15 @@ static ASTNode* parse_expression(Parser* parser) {
             parser->tokens[parser->current_token + 1].type == TOKEN_LARROW) {
                 left=parse_method_call(parser, left);
             }else {
-                Token property=consume(parser);
-                left=create_property_access(left,parse_primary(parser));
+                left=create_property_access(left,create_literal(consume(parser).value,NODE_IDENTIFIER),false,false);
+                if (match(parser, TOKEN_ASSIGN)) {
+                    consume(parser);
+                    ASTNode* value = parse_expression(parser);
+                    create_assigment_stmt(left, value);
+                }
             }
-    }
 
+    }
     if (match(parser, TOKEN_LBRACKET)) {
         consume(parser);
         ASTNode* index = parse_expression(parser);
@@ -192,6 +229,10 @@ static ASTNode* parse_variable(Parser* parser) {
     expect(parser, TOKEN_COLON , "Se esperaba ':'");
 
     ASTNode* var_type = parse_type(parser);
+    if (var_type->type == NODE_IDENTIFIER && is_class_type(parser,var_type->primitive_type.type_name)) {
+        var_type->type=NODE_CLASS;
+    }
+
     ASTNode* value=NULL;
     bool is_mutable = false;
     if (match(parser, TOKEN_ASSIGN)) {
@@ -227,7 +268,10 @@ static ASTNode* parse_statement(Parser* parser) {
             parse_new_instance(parser);
         default: {
             ASTNode* expr = parse_expression(parser);
-            expect(parser, TOKEN_SEMICOLON,"Se esperaba ';'");
+            if (expr->type != TOKEN_ASSIGN) {
+                expect(parser, TOKEN_SEMICOLON,"Se esperaba ';'");
+            }
+
             return expr;
         }
     }
@@ -238,6 +282,11 @@ static ASTNode* parse_class(Parser* parser) {
     if (name.type!=TOKEN_IDENTIFIER) {
         fprintf(stderr,"Se esperaba un identificador para el nombre de la clase'");
     }
+    parser->classes = realloc(parser->classes, sizeof(char*)*(parser->classes_count+1));
+
+    parser->classes[parser->classes_count] = strdup(name.value);
+    parser->classes_count++;
+
     expect(parser,TOKEN_LBRACE,"Se esperaba '{'");
 
     ASTNode** properties=NULL;
@@ -298,10 +347,6 @@ static ASTNode* parse_print_statement(Parser* parser) {
     expect(parser, TOKEN_LPAREN, "Se esperaba '(' despues de Print");
     ASTNode** args = NULL;
     size_t arg_count = 0;
-
-    ASTNode* arg = parse_expression(parser);
-    args=malloc(sizeof(ASTNode*));
-    args[arg_count++] = arg;
 
     while (!match(parser, TOKEN_RPAREN)) {
         ASTNode* arg = parse_expression(parser);

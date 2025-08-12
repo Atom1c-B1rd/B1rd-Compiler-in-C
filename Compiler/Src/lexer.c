@@ -107,7 +107,6 @@ Token* tokenize(const char* source) {
         add_token(TOKEN_ERROR, current, 1);
         current++;
     }
-
     add_token(TOKEN_EOF, current, 0);
     return tokens;
 }
@@ -117,4 +116,7 @@ void free_tokens(Token* tokens) {
         free(tokens[i].value);
     }
     free(tokens);
+    tokens=NULL;
+    tokens_count=0;
+    tokens_capacity=0;
 }
